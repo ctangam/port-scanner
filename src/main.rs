@@ -23,17 +23,25 @@ fn main() {
             Err(_) => println!("Port: {port} is closed or filtered"),
         }
     } else {
-        let mut hosts: Vec<String> = Vec::new();
-
-        println!("Scanning host: {host} on all ports");
-
-        (1..=65535)
-            .into_par_iter()
-            .filter_map(|port| format!("{host}:{port}").parse::<SocketAddr>().ok())
-            .for_each(|addr| {
-                if TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok() {
-                    println!("Port: {} is open", addr.port());
+        host.split(",")
+            .flat_map(|h| {
+                if h.ends_with("*") {
+                    (1..256).map(|i| h.replace("*", &i.to_string())).collect()
+                } else {
+                    vec![h.to_string()]
                 }
+            })
+            .for_each(|host| {
+                println!("Scanning host: {host} on all ports");
+
+                (1..=65535)
+                    .into_par_iter()
+                    .filter_map(|port| format!("{host}:{port}").parse::<SocketAddr>().ok())
+                    .for_each(|addr| {
+                        if TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok() {
+                            println!("Port: {} is open", addr.port());
+                        }
+                    });
             });
     }
 }
